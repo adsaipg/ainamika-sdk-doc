@@ -637,8 +637,6 @@ implementation("com.ainamika:sdk:1.0.0")
 
 ## Support
 
-- **Documentation**: https://docs.ainamika.com
-- **Issues**: https://github.com/ainamika/android-sdk/issues
 - **Email**: support@ainamika.com
 
 ---
