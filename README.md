@@ -45,7 +45,15 @@ dependencies {
 ```
 </details>
 
-### Step 3: Create Application Class
+### Step 3: Get Your Project Credentials
+
+From the [AInamika Dashboard](https://ainamika.netlify.app), create a project to get your:
+- **Project Key**: Public identifier for your project
+- **Project Secret**: Secret key for HMAC authentication
+
+> ⚠️ **Important**: Save your project secret immediately when creating a project. It's only shown once!
+
+### Step 4: Create Application Class
 
 Create an `Application` class if you don't have one:
 
@@ -60,8 +68,10 @@ class MyApp : Application() {
         super.onCreate()
 
         // Initialize with your project credentials
-        val config = AinamikaConfig.Builder("your_project_key")
-            .clientId("your_client_id")
+        val config = AinamikaConfig.Builder(
+            projectKey = "your_project_key",
+            projectSecret = "your_project_secret"  // Keep this secure!
+        )
             .enableAutoTracking(true)
             .enableEngagementTracking(true)
             .enablePerformanceTracking(true)
@@ -73,7 +83,7 @@ class MyApp : Application() {
 }
 ```
 
-### Step 4: Register in AndroidManifest.xml
+### Step 5: Register in AndroidManifest.xml
 
 Add your Application class to `AndroidManifest.xml`:
 
@@ -88,7 +98,7 @@ Add your Application class to `AndroidManifest.xml`:
 </application>
 ```
 
-### Step 5: Sync & Run
+### Step 6: Sync & Run
 
 Click "Sync Now" in Android Studio and run your app. That's it!
 
@@ -180,8 +190,10 @@ class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        val config = AinamikaConfig.Builder("your_project_key")
-            .clientId("your_client_id")                    // Required for authentication
+        val config = AinamikaConfig.Builder(
+            projectKey = "your_project_key",
+            projectSecret = "your_project_secret"          // Keep this secure!
+        )
             .apiEndpoint("https://your-api.com")           // Custom endpoint (optional)
             .enableAutoTracking(true)                      // Auto screen/click tracking
             .enableEngagementTracking(true)                // Scroll, rage clicks, etc.
@@ -190,8 +202,6 @@ class MyApp : Application() {
             .enableErrorTracking(true)                     // Crash reporting
             .enableScreenshotOnCrash(true)                 // Capture screenshot on crash
             .enableDebugLogging(BuildConfig.DEBUG)         // Debug logs
-            .sampleRate(1.0f)                              // Event sampling (0.0-1.0)
-            .errorSampleRate(1.0f)                         // Error sampling (0.0-1.0)
             .sessionTimeoutMinutes(30)                     // Session timeout
             .eventBatchSize(20)                            // Events per batch
             .eventFlushIntervalMs(30000)                   // Flush interval (30s)
@@ -206,6 +216,135 @@ class MyApp : Application() {
     }
 }
 ```
+
+> **Note:** Sampling rates are controlled from the AInamika Dashboard, not in the SDK configuration. This ensures consistent user-level sampling across all platforms.
+
+---
+
+## Enterprise Self-Hosted Configuration
+
+AInamika supports **Enterprise Self-Hosted deployments** for organizations that need to keep analytics data within their own infrastructure. When your organization has enterprise mode enabled, configure the SDK to point to your self-hosted instance:
+
+### Configuring for Enterprise Mode
+
+```kotlin
+class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+
+        val config = AinamikaConfig.Builder(
+            projectKey = "your_project_key",
+            projectSecret = "your_project_secret"
+        )
+            // Point to your enterprise instance
+            .apiEndpoint("https://your-enterprise-instance.com/api/v1/events")
+            .enableAutoTracking(true)
+            .enableEngagementTracking(true)
+            .build()
+
+        Ainamika.initialize(config)
+    }
+}
+```
+
+### Enterprise Mode Features
+
+When using enterprise mode:
+- **Data Privacy**: All analytics data stays within your infrastructure
+- **Custom Domains**: Use your own domain for SDK endpoints
+- **Network Isolation**: Can work in air-gapped environments
+- **Full Control**: Manage data retention, backups, and compliance
+
+### How to Get Your Enterprise Endpoint
+
+1. **From Dashboard**: If your admin has enabled enterprise mode, you'll see the endpoint URL in the project settings
+2. **From IT Team**: Your IT/DevOps team who deployed the enterprise instance will provide:
+   - The ingestion endpoint URL (e.g., `https://analytics.yourcompany.com/api/v1/events`)
+   - Any required authentication headers
+3. **Default Ports**:
+   - Ingestion API: Usually port 5000 or 8080
+   - Query API: Usually port 5001 or 8080
+
+### Example Configurations
+
+**Docker Deployment:**
+```kotlin
+.apiEndpoint("http://192.168.1.100:5000/api/v1/events")
+```
+
+**Kubernetes with Ingress:**
+```kotlin
+.apiEndpoint("https://analytics.yourcompany.com/api/v1/events")
+```
+
+**Behind VPN:**
+```kotlin
+.apiEndpoint("https://analytics.internal.company.net/api/v1/events")
+```
+
+### Custom Headers for Enterprise
+
+If your enterprise instance requires additional headers:
+
+```kotlin
+val config = AinamikaConfig.Builder(
+    projectKey = "your_project_key",
+    projectSecret = "your_project_secret"
+)
+    .apiEndpoint("https://your-enterprise-instance.com/api/v1/events")
+    .customHeaders(mapOf(
+        "X-Enterprise-Token" to "your-enterprise-token",
+        "X-Department" to "engineering"
+    ))
+    .build()
+```
+
+### Verifying Enterprise Connection
+
+To verify your SDK is correctly configured for enterprise:
+
+1. **Enable Debug Logging**: Set `.enableDebugLogging(true)` to see network requests
+2. **Check Logs**: Look for requests going to your enterprise endpoint
+3. **Check Response**: Should return 200 OK with `{"success": true}`
+4. **Dashboard**: Login to AInamika dashboard - it will show "Enterprise Mode: Active" when enabled
+
+### Network Configuration
+
+For enterprise deployments behind firewalls:
+
+**Add to `network_security_config.xml`:**
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- For local/internal endpoints only -->
+        <domain includeSubdomains="true">192.168.1.100</domain>
+        <domain includeSubdomains="true">analytics.internal.company.net</domain>
+    </domain-config>
+</network-security-config>
+```
+
+**Reference in `AndroidManifest.xml`:**
+```xml
+<application
+    android:networkSecurityConfig="@xml/network_security_config"
+    ...>
+```
+
+### Fallback Behavior
+
+If enterprise endpoint is unreachable:
+- Events are queued locally (up to `maxEventsInQueue` limit)
+- SDK retries with exponential backoff
+- No data is sent to AInamika cloud servers
+- Events are persisted to disk and retried on next app launch
+
+### Security Considerations
+
+- **HTTPS Required**: Always use HTTPS in production (except for local testing)
+- **Certificate Pinning**: Consider certificate pinning for added security
+- **Authentication**: Use the same `projectKey` and `projectSecret` as cloud mode
+- **Network Policies**: May need to whitelist the enterprise instance in corporate networks
 
 ---
 
@@ -512,6 +651,32 @@ Events are automatically:
 
 ---
 
+## Sampling
+
+Sampling is controlled from the **AInamika Dashboard**, not in the SDK. This ensures:
+
+- **Consistent user-level sampling**: The same user is always sampled or not sampled (deterministic based on user ID)
+- **Cross-platform consistency**: Web and Android SDKs use the same sampling logic
+- **Centralized control**: Adjust sampling rates from the dashboard without app updates
+
+### How It Works
+
+1. On SDK initialization, sampling decisions are fetched from the server
+2. The server determines if this user should be sampled based on project settings
+3. Sampling decisions are cached locally for 24 hours
+4. If offline, cached decisions are used; if no cache, all events are sampled
+
+### Sampling Types
+
+| Type | Description |
+|------|-------------|
+| **Event Sampling** | Controls percentage of user events tracked |
+| **Error Sampling** | Controls percentage of errors captured (recommended: 100%) |
+
+> Configure sampling rates in your AInamika Dashboard under **Project Settings > Sampling**.
+
+---
+
 ## ProGuard / R8
 
 If using ProGuard or R8, add these rules:
@@ -534,7 +699,10 @@ If using ProGuard or R8, add these rules:
 Enable debug logging to see SDK activity:
 
 ```kotlin
-AinamikaConfig.Builder("your_project_key")
+AinamikaConfig.Builder(
+    projectKey = "your_project_key",
+    projectSecret = "your_project_secret"
+)
     .enableDebugLogging(true)
     .build()
 ```
@@ -569,7 +737,42 @@ The SDK requires these permissions (automatically merged):
 
 ---
 
-## Data Privacy
+## Security & Data Privacy
+
+### HMAC Authentication
+
+The SDK uses HMAC-SHA256 signatures for secure API authentication:
+- Every request is signed with your `projectSecret`
+- Signatures include timestamps to prevent replay attacks
+- The secret is never transmitted - only used to generate signatures
+
+### Protecting Your Project Secret
+
+⚠️ **Important**: Keep your `projectSecret` secure:
+- Store it in `local.properties` or `secrets.properties` (not committed to git)
+- Use BuildConfig fields to inject at build time
+- Never hardcode in source files that are committed
+- Regenerate from the dashboard if compromised
+
+Example secure storage:
+```kotlin
+// local.properties (not committed to git)
+ainamika.projectSecret=your_secret_here
+
+// build.gradle.kts
+android {
+    defaultConfig {
+        buildConfigField("String", "AINAMIKA_SECRET",
+            "\"${project.findProperty("ainamika.projectSecret") ?: ""}\"")
+    }
+}
+
+// MyApp.kt
+val config = AinamikaConfig.Builder(
+    projectKey = "your_project_key",
+    projectSecret = BuildConfig.AINAMIKA_SECRET
+).build()
+```
 
 ### GDPR Compliance
 
@@ -616,9 +819,10 @@ The Android SDK tracks the same events as the Web SDK for consistent cross-platf
 ### Events Not Sending
 
 1. Check network connectivity
-2. Verify `projectKey` and `clientId` are correct
+2. Verify `projectKey` and `projectSecret` are correct
 3. Enable debug logging to see errors
 4. Check if SDK is enabled: `Ainamika.initialized`
+5. Check for HMAC signature errors in logs (wrong secret)
 
 ### High Memory Usage
 
@@ -637,6 +841,8 @@ implementation("com.ainamika:sdk:1.0.0")
 
 ## Support
 
+- **Documentation**: https://docs.ainamika.com
+- **Issues**: https://github.com/ainamika/android-sdk/issues
 - **Email**: support@ainamika.com
 
 ---
