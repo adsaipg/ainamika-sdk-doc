@@ -194,7 +194,6 @@ class MyApp : Application() {
             projectKey = "your_project_key",
             projectSecret = "your_project_secret"          // Keep this secure!
         )
-            .apiEndpoint("https://your-api.com")           // Custom endpoint (optional)
             .enableAutoTracking(true)                      // Auto screen/click tracking
             .enableEngagementTracking(true)                // Scroll, rage clicks, etc.
             .enablePerformanceTracking(true)               // Startup, render, ANR
@@ -223,9 +222,20 @@ class MyApp : Application() {
 
 ## Enterprise Self-Hosted Configuration
 
-AInamika supports **Enterprise Self-Hosted deployments** for organizations that need to keep analytics data within their own infrastructure. When your organization has enterprise mode enabled, configure the SDK to point to your self-hosted instance:
+AInamika supports **Enterprise Self-Hosted deployments** for organizations that need to keep analytics data within their own infrastructure.
 
-### Configuring for Enterprise Mode
+### Enterprise Mode Features
+
+When your organization has enterprise mode enabled:
+- **Data Privacy**: All analytics data stays within your infrastructure
+- **Automatic Routing**: Backend automatically routes to your self-hosted instance
+- **No SDK Changes**: Use the same SDK configuration as cloud mode
+- **Network Isolation**: Can work in air-gapped environments
+- **Full Control**: Manage data retention, backups, and compliance
+
+### SDK Configuration for Enterprise
+
+**No changes required!** Use the exact same configuration as cloud mode:
 
 ```kotlin
 class MyApp : Application() {
@@ -236,8 +246,6 @@ class MyApp : Application() {
             projectKey = "your_project_key",
             projectSecret = "your_project_secret"
         )
-            // Point to your enterprise instance
-            .apiEndpoint("https://your-enterprise-instance.com/api/v1/events")
             .enableAutoTracking(true)
             .enableEngagementTracking(true)
             .build()
@@ -247,104 +255,21 @@ class MyApp : Application() {
 }
 ```
 
-### Enterprise Mode Features
+The AInamika backend automatically detects when enterprise mode is enabled for your account and routes all data to your self-hosted instance. You don't need to specify any endpoints or make any configuration changes.
 
-When using enterprise mode:
-- **Data Privacy**: All analytics data stays within your infrastructure
-- **Custom Domains**: Use your own domain for SDK endpoints
-- **Network Isolation**: Can work in air-gapped environments
-- **Full Control**: Manage data retention, backups, and compliance
+### How It Works
 
-### How to Get Your Enterprise Endpoint
+1. **Automatic Detection**: When you authenticate with your projectKey/projectSecret, the backend checks if enterprise mode is enabled
+2. **Smart Routing**: If enterprise mode is active, all events are automatically routed through secure tunnels to your self-hosted instance
+3. **Transparent Operation**: The SDK works exactly the same way whether using cloud or enterprise mode
 
-1. **From Dashboard**: If your admin has enabled enterprise mode, you'll see the endpoint URL in the project settings
-2. **From IT Team**: Your IT/DevOps team who deployed the enterprise instance will provide:
-   - The ingestion endpoint URL (e.g., `https://analytics.yourcompany.com/api/v1/events`)
-   - Any required authentication headers
-3. **Default Ports**:
-   - Ingestion API: Usually port 5000 or 8080
-   - Query API: Usually port 5001 or 8080
+### Verifying Enterprise Mode
 
-### Example Configurations
+To verify you're using enterprise mode:
 
-**Docker Deployment:**
-```kotlin
-.apiEndpoint("http://192.168.1.100:5000/api/v1/events")
-```
-
-**Kubernetes with Ingress:**
-```kotlin
-.apiEndpoint("https://analytics.yourcompany.com/api/v1/events")
-```
-
-**Behind VPN:**
-```kotlin
-.apiEndpoint("https://analytics.internal.company.net/api/v1/events")
-```
-
-### Custom Headers for Enterprise
-
-If your enterprise instance requires additional headers:
-
-```kotlin
-val config = AinamikaConfig.Builder(
-    projectKey = "your_project_key",
-    projectSecret = "your_project_secret"
-)
-    .apiEndpoint("https://your-enterprise-instance.com/api/v1/events")
-    .customHeaders(mapOf(
-        "X-Enterprise-Token" to "your-enterprise-token",
-        "X-Department" to "engineering"
-    ))
-    .build()
-```
-
-### Verifying Enterprise Connection
-
-To verify your SDK is correctly configured for enterprise:
-
-1. **Enable Debug Logging**: Set `.enableDebugLogging(true)` to see network requests
-2. **Check Logs**: Look for requests going to your enterprise endpoint
-3. **Check Response**: Should return 200 OK with `{"success": true}`
-4. **Dashboard**: Login to AInamika dashboard - it will show "Enterprise Mode: Active" when enabled
-
-### Network Configuration
-
-For enterprise deployments behind firewalls:
-
-**Add to `network_security_config.xml`:**
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <!-- For local/internal endpoints only -->
-        <domain includeSubdomains="true">192.168.1.100</domain>
-        <domain includeSubdomains="true">analytics.internal.company.net</domain>
-    </domain-config>
-</network-security-config>
-```
-
-**Reference in `AndroidManifest.xml`:**
-```xml
-<application
-    android:networkSecurityConfig="@xml/network_security_config"
-    ...>
-```
-
-### Fallback Behavior
-
-If enterprise endpoint is unreachable:
-- Events are queued locally (up to `maxEventsInQueue` limit)
-- SDK retries with exponential backoff
-- No data is sent to AInamika cloud servers
-- Events are persisted to disk and retried on next app launch
-
-### Security Considerations
-
-- **HTTPS Required**: Always use HTTPS in production (except for local testing)
-- **Certificate Pinning**: Consider certificate pinning for added security
-- **Authentication**: Use the same `projectKey` and `projectSecret` as cloud mode
-- **Network Policies**: May need to whitelist the enterprise instance in corporate networks
+1. **Dashboard Check**: Login to AInamika dashboard - it will show "Enterprise Mode: Active" in your profile
+2. **Data Location**: All your analytics data will be stored only in your self-hosted ClickHouse instance
+3. **No Configuration**: If you don't need to change any SDK settings, it's working correctly
 
 ---
 
